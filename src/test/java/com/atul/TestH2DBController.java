@@ -7,6 +7,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Date;
 
+import com.atul.db.DBController;
+import com.atul.db.H2DBController;
 import com.atul.misc.RandomUserGenerator;
 
 /**
@@ -15,12 +17,14 @@ table users { seqno, userid, fname, mname, lname, accountid, address1, pin, city
 Test Query: select pin,fname,lname,mname,count(1) from users group by pin,fname,lname,mname order by count desc
 		Took 26 seconds on 5 lack records.
 
-dropTable took 48ms
-createTable took 78ms
-insertRecord took 3 seconds
-readRecords took 300ms to read 50000 records
-updateRecord took 685ms
-Took 5030 milliseconds to complete
+dropTable took 316ms
+createTable took 2ms
+insertRecord took 11 seconds
+readRecords took 15446ms to read 500000 records
+updateRecord took 2516ms
+Join query took 12701ms
+Took 42334 milliseconds to complete
+
  
  * @author Atul
  *
@@ -35,10 +39,11 @@ public class TestH2DBController {
 			dropTable(controller);
 			createTable(controller); 			
 			//truncateTable(controller);
-			insertRecord(controller,50000);
+			insertRecord(controller,500000);
 			readRecords(controller);
 			updateRecord(controller);
-
+			joinQuery(controller);
+			
 		}catch(Exception e){
 			e.printStackTrace();
 		}
@@ -120,6 +125,12 @@ public class TestH2DBController {
 			System.out.println("Exception while dropping table. Maybe first time? :" + e.getLocalizedMessage());
 		}
 		System.out.println("dropTable took " + (System.currentTimeMillis() - start) + "ms");
+	}
+	
+	private static void joinQuery(DBController controller) throws SQLException {
+		long start = System.currentTimeMillis();
+		int count = controller.executeQuery("select pin,fname,lname,mname,count(*) count from users group by pin,fname,lname,mname order by count desc");
+		System.out.println("Join query took  " + (System.currentTimeMillis() - start) + "ms to read " + count + " records");
 	}
 
 }

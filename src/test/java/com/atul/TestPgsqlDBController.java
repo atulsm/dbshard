@@ -1,14 +1,14 @@
-package com.atul.misc;
+package com.atul;
 
-import java.io.File;
-import java.sql.Connection;
-import java.sql.DriverManager;
+import java.io.StringReader;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Date;
 import java.util.Properties;
+
+import com.atul.db.DBController;
+import com.atul.db.PgsqlDBController;
+import com.atul.misc.RandomUserGenerator;
 
 /**
 
@@ -16,50 +16,55 @@ table users { seqno, userid, fname, mname, lname, accountid, address1, pin, city
 Test Query: select pin,fname,lname,mname,count(1) from users group by pin,fname,lname,mname order by count desc
 		Took 26 seconds on 5 lack records.
 
-dropTable took 48ms
-createTable took 78ms
-insertRecord took 3 seconds
-readRecords took 300ms to read 50000 records
-updateRecord took 685ms
-Took 5030 milliseconds to complete
+dropTable took 316ms
+createTable took 2ms
+insertRecord took 11 seconds
+readRecords took 15446ms to read 500000 records
+updateRecord took 2516ms
+Join query took 12701ms
+Took 42334 milliseconds to complete
+
  
  * @author Atul
  *
  */
-public class UserDataUploaderH2 {
-
-
-	private static Connection conn;
-	
-	private static Connection getConnection() throws Exception {
-        Class.forName("org.h2.Driver");
-        return DriverManager.getConnection("jdbc:h2:"+new File("target\\data","test").getAbsolutePath()+ ";LOG=0;UNDO_LOG=0;LOCK_MODE=0;");
-	}
-	
+public class TestPgsqlDBController {	
 	public static void main(String[] args) throws Exception {
-		conn = getConnection();	
+		String url = "jdbc:postgresql://localhost/pykh";
+		Properties props = new Properties();
+		props.setProperty("user","postgres");
+		props.setProperty("password","atul");
+		
+		String str = props.toString();
+		System.out.println(str);
+		Properties prop1 = new Properties();
+		prop1.load(new StringReader(str.substring(1, str.length() - 1).replace(", ", "\n"))); 
+		System.out.println(prop1);
+		
+		DBController controller = new PgsqlDBController(url, props);
+		controller.initConnection();
+		
 		long start = System.currentTimeMillis();
 		try{
-			dropTable();
-			createTable(); 			
-			//truncateTable();
-			insertRecord(5000);
-			readRecords();
-			updateRecord();
-
+			dropTable(controller);
+			createTable(controller); 			
+			//truncateTable(controller);
+			insertRecord(controller,500000);
+			readRecords(controller);
+			updateRecord(controller);
+			joinQuery(controller);
+			
 		}catch(Exception e){
 			e.printStackTrace();
-		}finally{
-			conn.close();
 		}
 		System.out.println("Took " + (System.currentTimeMillis() - start) + " milliseconds to complete");
 	}
 	
-	private static void insertRecord(int count) throws SQLException {
+	private static void insertRecord(DBController controller, int count) throws SQLException {
 		String sql = "insert into users values (?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		long start = System.currentTimeMillis();
 
-		PreparedStatement stmt = conn.prepareStatement(sql);
+		PreparedStatement stmt = controller.getPreparedStatement(sql);
 		try{
 			for (int i = 0; i < count; i++) {
 				stmt.setInt(1, i);
@@ -89,70 +94,53 @@ public class UserDataUploaderH2 {
 				}
 			}
 		} finally {
-			if (stmt != null)
+			if (stmt != null){
 				stmt.executeBatch();
 				stmt.close();
-			if (conn != null) {
-				if (!conn.getAutoCommit()) {
-					conn.commit();
-				}
-				//conn.close();
 			}
 		}
 		System.out.println("insertRecord took " + (System.currentTimeMillis() - start)/ 1000 + " seconds");
 	}
 		
-	private static void updateRecord() throws SQLException {
+	private static void updateRecord(DBController controller) throws SQLException {
 		long start = System.currentTimeMillis();
-		Statement st = conn.createStatement();
-		st.execute("update users set mname='mname1' where mname='mname'");
-		st.close();
+		controller.execute("update users set mname='mname1' where mname='mname'");
 		System.out.println("updateRecord took " + (System.currentTimeMillis() - start) + "ms");
 	}
 	
-	private static void readRecords() throws SQLException {
+	private static void readRecords(DBController controller) throws SQLException {
 		long start = System.currentTimeMillis();
-		Statement st = conn.createStatement();
-		ResultSet rs = st.executeQuery("select * from users");
-		int count = 0;
-		while (rs.next())
-		{
-			count++;
-		   //System.out.print("Column 1 returned ");
-		   //System.out.println(rs.getString(1));
-		} rs.close();
-		st.close();
+		int count = controller.executeQuery("select * from users");
 		System.out.println("readRecords took " + (System.currentTimeMillis() - start) + "ms to read " + count + " records");
 	}
 	
-	private static void truncateTable() throws SQLException {
+	private static void truncateTable(DBController controller) throws SQLException {
 		long start = System.currentTimeMillis();
-		Statement st = conn.createStatement();
-		st.execute("truncate table users");
-		st.close();
+		controller.execute("truncate table users");
 		System.out.println("truncateTable took " + (System.currentTimeMillis() - start) + "ms");
 	}
 
 	
-	private static void createTable() throws SQLException {
-		long start = System.currentTimeMillis();
-		Statement st = conn.createStatement();
-		 
-		st.execute("CREATE TABLE users (seqno integer PRIMARY KEY,userid text, fname text, mname text, lname text, accountid text, address1 text, pin text, city text, state text, country text, email text,phone text );");
-		st.close();
+	private static void createTable(DBController controller) throws SQLException {
+		long start = System.currentTimeMillis(); 
+		controller.execute("CREATE TABLE users (seqno integer PRIMARY KEY,userid text, fname text, mname text, lname text, accountid text, address1 text, pin text, city text, state text, country text, email text,phone text );");
 		System.out.println("createTable took " + (System.currentTimeMillis() - start) + "ms");
 	}
 	
-	private static void dropTable() throws SQLException {
+	private static void dropTable(DBController controller) throws SQLException {
 		long start = System.currentTimeMillis();
 		try{
-			Statement st = conn.createStatement();
-			st.execute("drop TABLE users");
-			st.close();
+			controller.execute("drop TABLE users");
 		}catch(Exception e){
 			System.out.println("Exception while dropping table. Maybe first time? :" + e.getLocalizedMessage());
 		}
 		System.out.println("dropTable took " + (System.currentTimeMillis() - start) + "ms");
+	}
+	
+	private static void joinQuery(DBController controller) throws SQLException {
+		long start = System.currentTimeMillis();
+		int count = controller.executeQuery("select pin,fname,lname,mname,count(*) count from users group by pin,fname,lname,mname order by count desc");
+		System.out.println("Join query took  " + (System.currentTimeMillis() - start) + "ms to read " + count + " records");
 	}
 
 }

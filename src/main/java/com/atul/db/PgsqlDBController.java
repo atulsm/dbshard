@@ -1,4 +1,4 @@
-package com.atul;
+package com.atul.db;
 
 import java.io.File;
 import java.sql.Connection;
@@ -14,24 +14,19 @@ import java.util.Properties;
  * @author Atul
  *
  */
-public class H2DBController implements DBController {
+public class PgsqlDBController implements DBController {
 
 	private Connection conn;
-	private File data;
+	private Properties props;
+	private String url;
 	
-	public H2DBController(File data){
-		this.data=data;
+	public PgsqlDBController(String url, Properties props){
+		this.url=url;
+		this.props=props;
 	}
 	
 	public void initConnection() throws SQLException {
-		try{
-			Class.forName("org.h2.Driver");
-		}catch(Exception e){
-			System.out.println("No suitable driver");
-			e.printStackTrace();
-			System.exit(0);
-		}
-        conn = DriverManager.getConnection("jdbc:h2:"+data.getAbsolutePath()+ ";LOG=0;UNDO_LOG=0;LOCK_MODE=0;");
+        conn = DriverManager.getConnection(url, props);
 	}
 
 	public void execute(String query) throws SQLException {
@@ -42,7 +37,7 @@ public class H2DBController implements DBController {
 
 	public int executeQuery(String query) throws SQLException {
 		Statement st = conn.createStatement();
-		ResultSet rs = st.executeQuery("select * from users");
+		ResultSet rs = st.executeQuery(query);
 		int count = 0;
 		while (rs.next()){
 			count++;
@@ -58,6 +53,11 @@ public class H2DBController implements DBController {
 	public PreparedStatement getPreparedStatement(String query)
 			throws SQLException {
 		return conn.prepareStatement(query);
+	}
+
+	public void upload(String remoteTable,String remoteUrl,String remoteProperties, String where) {
+		// TODO
+		
 	}		
 
 }

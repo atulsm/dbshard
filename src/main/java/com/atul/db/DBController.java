@@ -1,4 +1,4 @@
-package com.atul;
+package com.atul.db;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -36,5 +36,7 @@ public interface DBController {
 	void close() throws SQLException;
 	
 	PreparedStatement getPreparedStatement(String query) throws SQLException;
+	
+	void upload(String remoteTable,String remoteUrl,String remoteProperties, String where);
 
 }
